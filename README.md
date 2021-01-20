@@ -185,6 +185,8 @@ duplicate timestamps in our results, specifically 2021-01-20T08:02:00Z and
 
 ![I find your lack of logic disturbing](images/i-find-your-lack-of-logic-disturbing.jpg)
 
+TODO: (in Kylo Ren's voice) MORE! MORE!
+
 
 ## Concurrency considerations
 
@@ -207,3 +209,10 @@ time-stamped data, is a sequence of data points indexed in time order.
 Time-stamped is data collected at different points in time. These data points
 typically consist of successive measurements made from the same source over a
 time interval and are used to track change over time.
+
+
+## Bonus
+
+![reading memes on github](images/reading-memes-on-github.webp)
+
+[Credits](https://www.reddit.com/r/ProgrammerHumor/comments/l1h14v/the_industry_is_really_shifting/)
