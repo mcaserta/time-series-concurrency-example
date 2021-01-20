@@ -47,6 +47,7 @@ public class App {
                 .collect(Collectors.toUnmodifiableList());
 
         p("timedValues = " + timedValues);
+        System.exit(0);
     }
 
     private static void p(String message) {
