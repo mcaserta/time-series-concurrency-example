@@ -10,11 +10,15 @@ import static java.util.Comparator.comparing;
 
 public class App {
 
+    private static double airPollutionIndex(double temperature, double carbonMonoxidePercentage, double maxTemperature) {
+        return (temperature * carbonMonoxidePercentage) / maxTemperature;
+    }
+
     public static void main(String[] args) {
         p("Hello concurrent world!");
 
-        TimedValueProvider provider1 = new RandomTimedValueProvider();
-        TimedValueProvider provider2 = new RandomTimedValueProvider();
+        TimedValueProvider provider1 = new RandomTimedValueProvider(0, 50);
+        TimedValueProvider provider2 = new RandomTimedValueProvider(0, 100);
 
         CompletableFuture<List<TimedValue>> timedValuesFuture1 = CompletableFuture.supplyAsync(() -> {
             p("Calling provider1...");
@@ -37,11 +41,12 @@ public class App {
         List<TimedValue> timedValues1 = timedValuesFuture1.join();
         List<TimedValue> timedValues2 = timedValuesFuture2.join();
 
+
         List<TimedValue> timedValues = timedValues1.stream()
                 .map(tv1 -> timedValues2.stream()
                         .filter(tv2 -> tv2.timestamp().isBefore(tv1.timestamp()))
                         .max(comparing(TimedValue::timestamp))
-                        .map(tv2 -> new TimedValue(tv1.timestamp(), tv1.value() * tv2.value())))
+                        .map(tv2 -> new TimedValue(tv1.timestamp(), airPollutionIndex(tv1.value(), tv2.value(), 50))))
                 .flatMap(Optional::stream)
                 .sorted(comparing(TimedValue::timestamp))
                 .collect(Collectors.toUnmodifiableList());
