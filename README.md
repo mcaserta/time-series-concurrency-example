@@ -30,10 +30,10 @@ We may calculate the `AQi` with the following sorry excuse of a formula:
 <!-- AQi = (((T * 100) / Tm) + C) / 2 -->
 ![air quality formula](images/air-quality-formula.png)
 
-**DISCLAIMER:** please note that this formula is in no way scientific and it's
+**DISCLAIMER:** please note that this formula is in no way scientific, and it's
 only intended for educational purposes. I don't want environmentalists and real
 scientists chasing me around with math formulas and accusations of quackery. I
-saw an excuse for a pretty LaTeX equation and I took it, because aesthetics.
+saw a chance for a pretty LaTeX equation, and I took it, because aesthetics.
 
 What the formula attempts to say is that as the temperature and the carbon
 monoxide percentage rise, the air quality decreases.
@@ -78,12 +78,11 @@ From this we can derive the following table:
 
 ## Service providers
 
-Suppose we have internet services that expose
-temperature and carbon monoxide levels monitoring values.
-Those services would expose an api that gives us time series 
-data<sup>[[3]](#time-series-data)</sup>.
+Suppose we have internet services that expose temperature and carbon monoxide
+levels monitoring values.  Those services would expose an api that gives us
+time series data<sup>[[3]](#time-series-data)</sup>.
 
-So, for instance, we might call a temperature monitoring service and it would
+So, for instance, we might call a temperature monitoring service, and it would
 respond with time series data like this:
 
 |        timestamp       | value  |
@@ -107,7 +106,7 @@ that looks like this:
 | `2021-01-20T08:07:00Z` | `2.9` |
 | `2021-01-20T08:08:00Z` | `3.3` |
 
-If we combine the data and sort by timestamp, we have:
+If we combine the data and sort by the timestamp, we have:
 
 |  id  |        timestamp       | value  | type |
 |------|------------------------|--------|------|
@@ -126,22 +125,22 @@ If we combine the data and sort by timestamp, we have:
 > type: T is temperature and C is carbon monoxide percentage
 
 The first thing to note is that to compute our `AQi` formula we need to have
-both values for `T` and `C`. In other words, the first time point where we
-can apply our formula is that with id `2` as we have a value for `T` in id `1`
-and a value for `C` in id `2`. So we take our values (`10.1` for `T` and `2.0` for `C`), 
-apply the formula and we
-have a first `AQi` value of `13.625` which we associate with the timestamp in id `2`, as 
-that is the moment our computation refers to. Our first `AQi` entry in the
-resulting time series should now look like this:
+both values for `T` and `C`. In other words, the first time point where we can
+apply our formula is that with id `2` as we have a value for `T` in id `1` and
+a value for `C` in id `2`. So we take our values (`10.1` for `T` and `2.0` for
+`C`), apply the formula, and we have a first `AQi` value of `13.625` which we
+associate with the timestamp in id `2`, as that is the moment our computation
+refers to. Our first `AQi` entry in the resulting time series should now look
+like this:
 
 |        timestamp       |  value   |
 |------------------------|----------|
 | `2021-01-20T08:01:00Z` | `13.625` |
 
-If we look at our `AQi` table above, we can see that a value of `13.625` corresponds
-in fact to *pretty cool*.
+If we look at our `AQi` table above, we can see that a value of `13.625`
+corresponds in fact to *pretty cool*.
 
-From now on, our calculation can be applied to every remaining element in the 
+From now on, our calculation can be applied to every remaining element in the
 time series, keeping in mind that we must correlate each value with the most
 recent value of the other type. In other words:
 
@@ -185,27 +184,25 @@ duplicate timestamps in our results, specifically `2021-01-20T08:02:00Z` and
 
 ![I find your lack of logic disturbing](images/i-find-your-lack-of-logic-disturbing.jpg)
 
-We both know this data is eventually going to show up on a web page.
-Also, we wouldn't want one of those hipster javascript frontend developers 
-and his hillbilly 3D plotting library to point out a lack of logic or, 
-worse, an inconsistency in our data, wouldn't we?
+We both know this data is eventually going to show up on a web page.  Also, we
+wouldn't want one of those hipster javascript frontend developers to point out
+a lack of logic or, worse, an inconsistency in our data to us, wouldn't we?
 
 Yeah, I thought so. So, my idea is that we can safely discard the first entry
 of a duplicate timestamp as it refers to a calculation with stale data. Why?
-Well, consider the values for the first duplicate timestamp: 
-`2021-01-20T08:02:00Z`. The first time
-we computed the `AQi`, we picked data from id `2` and `3` and id `2` refers to a
-previous timestamp, specifically `2021-01-20T08:01:00Z`. The second time we
-computed the `AQi`, we were using data from id `3` and `4`, which both refer to
-timestamp `2021-01-20T08:02:00Z`, so this computation's result is more relevant
-than the previous one which we stamped with the same `2021-01-20T08:02:00Z`
-timestamp.
+Well, consider the values for the first duplicate timestamp:
+`2021-01-20T08:02:00Z`. The first time we computed the `AQi`, we picked data
+from id `2` and `3` and id `2` refers to a previous timestamp, specifically
+`2021-01-20T08:01:00Z`. The second time we computed the `AQi`, we were using
+data from id `3` and `4`, which both refer to timestamp `2021-01-20T08:02:00Z`,
+so this computation's result is more relevant than the previous one which we
+stamped with the same `2021-01-20T08:02:00Z` timestamp.
 
 The same thing applies to the `AQi` entry with timestamp `2021-01-20T08:06:00Z`
-as the first computation was using ids `4` and `6` while the second was 
+as the first computation was using ids `4` and `6` while the second was
 considering ids `6` and `7` which are fresher than the timestamp in id `4`.
 
-And so we erase a couple entries and our clean result set now looks like this:
+So we erase a couple entries, and our clean result set now looks like this:
 
 |        timestamp       |  value   |
 |------------------------|----------|

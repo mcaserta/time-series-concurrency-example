@@ -2,60 +2,45 @@ package com.mirkocaserta.example;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
-import static java.util.Comparator.comparing;
 
 public class App {
 
-    private static double airPollutionIndex(double temperature, double carbonMonoxidePercentage, double maxTemperature) {
-        return (temperature * carbonMonoxidePercentage) / maxTemperature;
-    }
-
     public static void main(String[] args) {
-        p("Hello concurrent world!");
+        log("Hello concurrent world!");
 
-        TimedValueProvider provider1 = new RandomTimedValueProvider(0, 50);
-        TimedValueProvider provider2 = new RandomTimedValueProvider(0, 100);
+        TimeValueProvider provider1 = new RandomTimeValueProvider(0, 50);
+        TimeValueProvider provider2 = new RandomTimeValueProvider(0, 100);
 
-        CompletableFuture<List<TimedValue>> timedValuesFuture1 = CompletableFuture.supplyAsync(() -> {
-            p("Calling provider1...");
-            List<TimedValue> timedValues = provider1.get();
-            p(String.format("provider 1 returned: %s\n", timedValues));
-            return timedValues;
+        CompletableFuture<List<TimeValue>> timedValuesFuture1 = CompletableFuture.supplyAsync(() -> {
+            log("Calling provider1...");
+            List<TimeValue> timeValues = provider1.get();
+            log(String.format("provider 1 returned: %s\n", timeValues));
+            return timeValues;
         });
 
-        CompletableFuture<List<TimedValue>> timedValuesFuture2 = CompletableFuture.supplyAsync(() -> {
-            p("Calling provider2...");
-            List<TimedValue> timedValues = provider2.get();
-            p(String.format("provider 2 returned: %s\n", timedValues));
-            return timedValues;
+        CompletableFuture<List<TimeValue>> timedValuesFuture2 = CompletableFuture.supplyAsync(() -> {
+            log("Calling provider2...");
+            List<TimeValue> timeValues = provider2.get();
+            log(String.format("provider 2 returned: %s\n", timeValues));
+            return timeValues;
         });
 
-        p("Calling allOf(...).join()");
+        log("Calling allOf(...).join()");
         CompletableFuture.allOf(timedValuesFuture1, timedValuesFuture2).join();
-        p("After allOf(...).join()");
+        log("After allOf(...).join()");
 
-        List<TimedValue> timedValues1 = timedValuesFuture1.join();
-        List<TimedValue> timedValues2 = timedValuesFuture2.join();
+        List<TimeValue> timeValues1 = timedValuesFuture1.join();
+        List<TimeValue> timeValues2 = timedValuesFuture2.join();
 
 
-        List<TimedValue> timedValues = timedValues1.stream()
-                .map(tv1 -> timedValues2.stream()
-                        .filter(tv2 -> tv2.timestamp().isBefore(tv1.timestamp()))
-                        .max(comparing(TimedValue::timestamp))
-                        .map(tv2 -> new TimedValue(tv1.timestamp(), airPollutionIndex(tv1.value(), tv2.value(), 50))))
-                .flatMap(Optional::stream)
-                .sorted(comparing(TimedValue::timestamp))
-                .collect(Collectors.toUnmodifiableList());
+        List<TimeValue> timeValues = new FunctionalAirQualityIndexCalculator(40).calculate(timeValues1, timeValues2);
 
-        p("timedValues = " + timedValues);
+        log("timeValues = " + timeValues);
         System.exit(0);
     }
 
-    private static void p(String message) {
+    private static void log(String message) {
         System.out.printf("%s --- [%s] %s\n", LocalDateTime.now(), Thread.currentThread().getName(), message);
     }
 
