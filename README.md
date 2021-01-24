@@ -111,9 +111,15 @@ that looks like this:
 
 Please note that I have sorted the data by timestamp to make it a bit more
 readable, but you shouldn't make assumptions on the sort order of the data
-returned by an external provider. Not that it is of any importance here as
-our algorithm now requires concatenating the temperature and carbon monoxide
-percentage data and then sort the result by timestamp like this:
+returned by an external provider. Not that this is of any importance here as...
+
+
+# The algorithm
+
+...our algorithm now requires:
+
+1. concatenating the temperature and carbon monoxide percentage data
+2. sort by timestamp
 
 |  id  |        timestamp       | value  | type |
 |------|------------------------|--------|------|
@@ -131,11 +137,10 @@ percentage data and then sort the result by timestamp like this:
 | `12` | `2021-01-20T08:09:00Z` | `11.3` | `T`  |
 > type: T is temperature and C is carbon monoxide percentage
 
-Our task now is to scan the data, row by row from the beginning, computing the
-air quality index each time we have a new value either for temperature or for
-the carbon monoxide percentage.
+Our task now is to scan the data, starting from the beginning, one row at a time, 
+computing the air quality index as we go forward, step by step.
 
-The first thing to note is that to compute our `AQi` formula we need to have
+The first thing to note here is that to compute our `AQi` formula we need to have
 both values for `T` and `C`. In other words, the first time point where we can
 apply our formula is that with id `2` as we have a value for `T` in id `1` and
 a value for `C` in id `2`. So we take our values (`10.1` for `T` and `2.0` for
@@ -169,7 +174,7 @@ recent value of the other type. In other words:
 You can think of this kind of motion as a 
 [rolling time window](https://towardsdatascience.com/time-series-analysis-resampling-shifting-and-rolling-f5664ddef77e)
 as you have a window that moves forward in time focusing on the most
-recent data for our specific `T` and `C` measure types at each 
+recent data for our specific `T` and `C` measures at each 
 step<sup>[[5]](#creep)</sup>.
 
 Given the above, our complete resulting time series for the `AQi` is:
