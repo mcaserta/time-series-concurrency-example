@@ -31,12 +31,13 @@ We may calculate the `AQi` with the following sorry excuse of a formula:
 ![air quality formula](images/air-quality-formula.png)
 
 **DISCLAIMER:** please note that this formula is in no way scientific, and it's
-only intended for educational purposes. I don't want environmentalists and real
+intended for educational purposes only. I don't want environmentalists and real
 scientists chasing me around with math formulas and accusations of quackery. I
-saw a chance for a pretty LaTeX equation, and I took it, because aesthetics.
+saw a chance for a pretty LaTeX equation and I took it, because aesthetics.
 
 What the formula attempts to say is that as the temperature and the carbon
-monoxide percentage rise, the air quality decreases.
+monoxide percentage rise, the air quality decreases. Yeah, this is totally
+unscientific but bear with me for the sake of argumentation.
 
 I assume a maximum temperature of 40C°. So, for instance:
 
@@ -62,7 +63,7 @@ t=10; c=0.5; tm=40; (((t * 100) / tm) + c) / 2
 12.75000000000000000000
 ```
 
-From this we can derive the following table:
+From this we can derive the following totally unscientific table:
 
 |     AQi        |                       meaning                       |
 |----------------|-----------------------------------------------------|
@@ -79,7 +80,7 @@ From this we can derive the following table:
 ## Service providers
 
 Suppose we have internet services that expose temperature and carbon monoxide
-levels monitoring values.  Those services would expose an api that gives us
+level monitoring values.  These services might expose an api that gives us
 time series data<sup>[[3]](#time-series-data)</sup>.
 
 So, for instance, we might call a temperature monitoring service, and it would
@@ -106,7 +107,11 @@ that looks like this:
 | `2021-01-20T08:07:00Z` | `2.9` |
 | `2021-01-20T08:08:00Z` | `3.3` |
 
-If we combine the data and sort by the timestamp, we have:
+Please note that I have sorted the data by timestamp to make it a bit more
+readable, but you shouldn't make assumptions on the sort order of the data
+returned by an external provider. Not that it is of any importance here as
+our algorithm now requires concatenating the temperature and carbon monoxide
+percentage data and then sort the result by timestamp like this:
 
 |  id  |        timestamp       | value  | type |
 |------|------------------------|--------|------|
@@ -124,6 +129,10 @@ If we combine the data and sort by the timestamp, we have:
 | `12` | `2021-01-20T08:09:00Z` | `11.3` | `T`  |
 > type: T is temperature and C is carbon monoxide percentage
 
+Our task now is to scan the data, row by row from the beginning, computing the
+air quality index each time we have a new value either for temperature or for
+the carbon monoxide percentage.
+
 The first thing to note is that to compute our `AQi` formula we need to have
 both values for `T` and `C`. In other words, the first time point where we can
 apply our formula is that with id `2` as we have a value for `T` in id `1` and
@@ -137,26 +146,28 @@ like this:
 |------------------------|----------|
 | `2021-01-20T08:01:00Z` | `13.625` |
 
-If we look at our `AQi` table above, we can see that a value of `13.625`
-corresponds in fact to *pretty cool*.
-
 From now on, our calculation can be applied to every remaining element in the
 time series, keeping in mind that we must correlate each value with the most
 recent value of the other type. In other words:
 
-| for id | pick values for `T` and `C` from id |
-|--------|-------------------------------------|
-|    `2` | `1, 2`                              |
-|    `3` | `2, 3`                              |
-|    `4` | `3, 4`                              |
-|    `5` | `4, 5`                              |
-|    `6` | `4, 6`                              |
-|    `7` | `6, 7`                              |
-|    `8` | `7, 8`                              |
-|    `9` | `7, 9`                              |
-|   `10` | `9, 10`                             |
-|   `11` | `9, 11`                             |
-|   `12` | `11, 12`                            |
+| for id | pick values from id |
+|--------|---------------------|
+|    `2` | `1, 2`              |
+|    `3` | `2, 3`              |
+|    `4` | `3, 4`              |
+|    `5` | `4, 5`              |
+|    `6` | `4, 6`              |
+|    `7` | `6, 7`              |
+|    `8` | `7, 8`              |
+|    `9` | `7, 9`              |
+|   `10` | `9, 10`             |
+|   `11` | `9, 11`             |
+|   `12` | `11, 12`            |
+
+You can think of this kind of motion as a 
+[rolling time window](https://towardsdatascience.com/time-series-analysis-resampling-shifting-and-rolling-f5664ddef77e)
+as you have a window that moves forward in time focusing on the most
+recent data for our specific `T` and `C` measure types at each step.
 
 Given the above, our complete resulting time series for the `AQi` is:
 
@@ -174,10 +185,7 @@ Given the above, our complete resulting time series for the `AQi` is:
 | `2021-01-20T08:08:00Z` | `15.525` |
 | `2021-01-20T08:09:00Z` | `15.775` |
 
-This looks like we went from *pretty cool* to *fine and dandy* pretty fast, 
-although I think *it is acceptable* and *this is fine*.
-
-If you've looked closely, you should have noticed that we have a couple
+If you've looked closely, you might have noticed that we have a couple
 duplicate timestamps in our results, specifically `2021-01-20T08:02:00Z` and
 `2021-01-20T08:06:00Z`. These represent a time paradox as it appears that our
 `AQi` has two different values at the same time.
@@ -216,7 +224,22 @@ So we erase a couple entries, and our clean result set now looks like this:
 | `2021-01-20T08:08:00Z` | `15.525` |
 | `2021-01-20T08:09:00Z` | `15.775` |
 
-Awesome.
+Real data is of course much more chaotic than this, and you might want to
+normalize the result by an arbitrary time interval, say one minute:
+
+|        timestamp       |  value   |
+|------------------------|----------|
+| `2021-01-20T08:01:00Z` | `13.625` |
+| `2021-01-20T08:02:00Z` | `14.025` |
+| `2021-01-20T08:03:00Z` | `14.025` |
+| `2021-01-20T08:04:00Z` | `14.025` |
+| `2021-01-20T08:05:00Z` | `14.525` |
+| `2021-01-20T08:06:00Z` | `15.025` |
+| `2021-01-20T08:07:00Z` | `15.325` |
+| `2021-01-20T08:08:00Z` | `15.525` |
+| `2021-01-20T08:09:00Z` | `15.775` |
+
+Makes sense? I certainly hope so.
 
 ![yes](images/yes.gif)
 
