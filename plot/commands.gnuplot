@@ -20,3 +20,9 @@ set output 'output.png'                  # Set output file to output.png
 plot 'time-series.dat' using 1:2 with linespoints lw 3 t 'Air Quality Index', \
      'time-series.dat' using 1:3 with linespoints lw 3 t 'Temperature C°', \
      'time-series.dat' using 1:4 with linespoints lw 3 t 'Carbon Monoxide Percentage'
+
+set output 'output-normalized.png'       # Set output file to output-normalized.png
+
+plot 'time-series-normalized.dat' using 1:2 with linespoints lw 3 t 'Air Quality Index', \
+     'time-series-normalized.dat' using 1:3 with linespoints lw 3 t 'Temperature C°', \
+     'time-series-normalized.dat' using 1:4 with linespoints lw 3 t 'Carbon Monoxide Percentage'
