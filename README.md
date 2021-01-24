@@ -6,7 +6,7 @@ This is an example for a blog post I'm writing.
 ## How to run the program
 
 ```shell
-mvn clean compile exec:java
+mvn clean compile verify exec:java
 ```
 
 ## Preface
@@ -32,12 +32,14 @@ We may calculate the `AQi` with the following sorry excuse of a formula:
 
 **DISCLAIMER:** please note that this formula is in no way scientific, and it's
 intended for educational purposes only. I don't want environmentalists and real
-scientists chasing me around with math formulas and accusations of quackery. I
-saw a chance for a pretty LaTeX equation and I took it, because aesthetics.
+scientists chasing me around with math formulas and accusations of quackery. 
+Also, I saw a chance for a pretty LaTeX equation and I took it, because 
+aesthetics... and it makes me look smart, which I certainly am 
+not<sup>[[1]](#school)</sup>.
 
 What the formula attempts to say is that as the temperature and the carbon
 monoxide percentage rise, the air quality decreases. Yeah, this is totally
-unscientific but bear with me for the sake of argumentation.
+unscientific but bear with me for the sake of argumentation, please.
 
 I assume a maximum temperature of 40C°. So, for instance:
 
@@ -70,8 +72,8 @@ From this we can derive the following totally unscientific table:
 |   125 to ∞     | horrible death                                      |
 |   100 to 125   | painful death                                       |
 |    75 to 100   | death                                               |
-|    55 to 75    | it is acceptable<sup>[[1]](#it-is-acceptable)</sup> |
-|    30 to 55    | this is fine<sup>[[2]](#this-is-fine)</sup>         |
+|    55 to 75    | it is acceptable<sup>[[2]](#it-is-acceptable)</sup> |
+|    30 to 55    | this is fine<sup>[[3]](#this-is-fine)</sup>         |
 |    15 to 30    | fine and dandy                                      |
 | 12.75 to 15    | pretty cool                                         |
 |    -∞ to 12.75 | welcome to Yakutsk, probably                        |
@@ -81,7 +83,7 @@ From this we can derive the following totally unscientific table:
 
 Suppose we have internet services that expose temperature and carbon monoxide
 level monitoring values.  These services might expose an api that gives us
-time series data<sup>[[3]](#time-series-data)</sup>.
+time series data<sup>[[4]](#time-series-data)</sup>.
 
 So, for instance, we might call a temperature monitoring service, and it would
 respond with time series data like this:
@@ -167,7 +169,8 @@ recent value of the other type. In other words:
 You can think of this kind of motion as a 
 [rolling time window](https://towardsdatascience.com/time-series-analysis-resampling-shifting-and-rolling-f5664ddef77e)
 as you have a window that moves forward in time focusing on the most
-recent data for our specific `T` and `C` measure types at each step.
+recent data for our specific `T` and `C` measure types at each 
+step<sup>[[5]](#creep)</sup>.
 
 Given the above, our complete resulting time series for the `AQi` is:
 
@@ -266,15 +269,21 @@ Makes sense? I certainly hope so.
 
 ## Footnotes
 
-<a name="this-is-fine">[1]</a> ![this is fine meme](images/this-is-fine.webp)
+<a name="school">[1]:</a> this is my revenge for all the bad math grades at 
+school.
 
-<a name="it-is-acceptable">[2]</a> ![it is acceptable meme](images/it-is-acceptable.jpg)
+<a name="this-is-fine">[2]:</a> ![this is fine meme](images/this-is-fine.webp)
 
-<a name="time-series-data">[3]</a> Time series data, also referred to as
+<a name="it-is-acceptable">[3]:</a> ![it is acceptable meme](images/it-is-acceptable.jpg)
+
+<a name="time-series-data">[4]:</a> Time series data, also referred to as
 time-stamped data, is a sequence of data points indexed in time order.
 Time-stamped is data collected at different points in time. These data points
 typically consist of successive measurements made from the same source over a
 time interval and are used to track change over time.
+
+<a name="creep">[5]:</a> I like to think of this movement as a kind of dance,
+and I find it sexy. I think [I'm a creep, I'm a weirdo](https://youtu.be/XFkzRNyygfk).
 
 
 ## Bonus
