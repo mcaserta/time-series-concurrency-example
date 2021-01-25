@@ -57,6 +57,7 @@ public class AirQualityIndexCollector
                                 timestamp,
                                 airQualityIndex(lastTemperature.value(), lastCarbonMonoxidePercentage.value(), maxTemperature)
                         ));
+                typedTimeValues.add(e);
             }
         };
     }
