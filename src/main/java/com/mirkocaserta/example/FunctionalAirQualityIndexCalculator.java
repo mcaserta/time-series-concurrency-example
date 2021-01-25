@@ -21,8 +21,7 @@ public class FunctionalAirQualityIndexCalculator implements AirQualityIndexCalcu
         );
 
         return timeSeries.sorted(comparing(TypedTimeValue::timestamp))
-                .collect(() -> new AirQualityIndexAccumulator(maxTemperature), AirQualityIndexAccumulator::accept, AirQualityIndexAccumulator::combine)
-                .getAirQualityIndices();
+                .collect(AirQualityIndexCollector.toUnmodifiableList(maxTemperature));
     }
 
 }
