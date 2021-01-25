@@ -1,4 +1,4 @@
-# Java concurrency with time series data and ComposableFuture example
+# Time Series Data and ComposableFuture example in Java
 
 This is an example for a blog post I'm writing.
 

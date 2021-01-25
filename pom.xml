@@ -3,10 +3,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mirkocaserta.example</groupId>
-    <artifactId>concurrency-example</artifactId>
+    <artifactId>time-series-concurrency-example</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Concurrency example</name>
-    <url>https://mcaserta.github.io/concurrency-example</url>
+    <name>Time Series Data and ComposableFuture example in Java</name>
+    <url>https://github.com/mcaserta/time-series-concurrency-example</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
