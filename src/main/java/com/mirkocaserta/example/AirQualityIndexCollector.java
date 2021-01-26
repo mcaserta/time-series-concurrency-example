@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import static com.mirkocaserta.example.AirQualityIndexCalculator.airQualityIndex;
 import static com.mirkocaserta.example.AirQualityIndexCalculator.mostRecent;
+import static java.util.Comparator.comparing;
 
 public class AirQualityIndexCollector
         implements Collector<TypedTimeValue, List<TypedTimeValue>, List<TimeValue>> {
@@ -27,7 +28,7 @@ public class AirQualityIndexCollector
 
     @Override
     public Supplier<List<TypedTimeValue>> supplier() {
-        return ArrayList::new;
+        return () -> Collections.synchronizedList(new ArrayList<>());
     }
 
     @Override
@@ -52,24 +53,8 @@ public class AirQualityIndexCollector
                     .map(TypedTimeValue::timestamp)
                     .sorted()
                     .forEach(entryTS -> {
-                        final TimeValue lastTemperature;
-                        final TimeValue lastCarbonMonoxidePercentage;
-
-                        lastTemperature = accumulator.stream()
-                                .filter(e -> e.type().equals(TypedTimeValue.Type.T))
-                                .filter(e -> e.timestamp().equals(entryTS) || e.timestamp().isBefore(entryTS))
-                                .sorted()
-                                .max(Comparator.comparing(TypedTimeValue::timestamp))
-                                .map(TypedTimeValue::timeValue)
-                                .orElse(null);
-
-                        lastCarbonMonoxidePercentage = accumulator.stream()
-                                .filter(e -> e.type().equals(TypedTimeValue.Type.C))
-                                .filter(e -> e.timestamp().equals(entryTS) || e.timestamp().isBefore(entryTS))
-                                .sorted()
-                                .max(Comparator.comparing(TypedTimeValue::timestamp))
-                                .map(TypedTimeValue::timeValue)
-                                .orElse(null);
+                        final TimeValue lastTemperature = getClosest(accumulator, TypedTimeValue.Type.T, entryTS);
+                        final TimeValue lastCarbonMonoxidePercentage = getClosest(accumulator, TypedTimeValue.Type.C, entryTS);
 
                         if (lastTemperature != null && lastCarbonMonoxidePercentage != null) {
                             Instant timestamp = mostRecent(lastTemperature.timestamp(), lastCarbonMonoxidePercentage.timestamp());
@@ -86,6 +71,16 @@ public class AirQualityIndexCollector
     @Override
     public Set<Characteristics> characteristics() {
         return Set.of(Characteristics.CONCURRENT, Characteristics.UNORDERED);
+    }
+
+    private static TimeValue getClosest(List<TypedTimeValue> accumulator, TypedTimeValue.Type type, Instant timestamp) {
+        return accumulator.stream()
+                .filter(e -> e.type().equals(type))
+                .filter(e -> e.timestamp().equals(timestamp) || e.timestamp().isBefore(timestamp))
+                .sorted()
+                .max(comparing(TypedTimeValue::timestamp))
+                .map(TypedTimeValue::timeValue)
+                .orElse(null);
     }
 
 }
