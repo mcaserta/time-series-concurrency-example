@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Comparator.comparing;
-
 public class FunctionalAirQualityIndexCalculator implements AirQualityIndexCalculator {
 
     private final double maxTemperature;
