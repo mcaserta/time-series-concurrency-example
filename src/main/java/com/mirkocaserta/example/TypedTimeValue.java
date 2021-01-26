@@ -2,7 +2,8 @@ package com.mirkocaserta.example;
 
 import java.time.Instant;
 
-final class TypedTimeValue {
+final class TypedTimeValue implements Comparable<TypedTimeValue> {
+
     enum Type {T, C}
 
     private final Type type;
@@ -24,6 +25,11 @@ final class TypedTimeValue {
 
     public Instant timestamp() {
         return timeValue.timestamp();
+    }
+
+    @Override
+    public int compareTo(TypedTimeValue o) {
+        return timestamp().compareTo(o.timestamp());
     }
 
 }

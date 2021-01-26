@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
-final class TimeValue {
+final class TimeValue implements Comparable<TimeValue> {
 
     private final Instant timestamp;
 
@@ -37,6 +37,11 @@ final class TimeValue {
         if (o == null || getClass() != o.getClass()) return false;
         TimeValue timeValue = (TimeValue) o;
         return Double.compare(timeValue.value, value) == 0 && Objects.equals(timestamp, timeValue.timestamp);
+    }
+
+    @Override
+    public int compareTo(TimeValue o) {
+        return timestamp.compareTo(o.timestamp);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.mirkocaserta.example;
 
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
@@ -15,12 +16,12 @@ public class FunctionalAirQualityIndexCalculator implements AirQualityIndexCalcu
 
     @Override
     public List<TimeValue> calculate(List<TimeValue> temperatures, List<TimeValue> carbonMonoxidePercentages) {
-        Stream<TypedTimeValue> timeSeries = Stream.concat(
+        List<TypedTimeValue> timeSeries = Stream.concat(
                 temperatures.stream().map(e -> new TypedTimeValue(TypedTimeValue.Type.T, e)),
                 carbonMonoxidePercentages.stream().map(e -> new TypedTimeValue(TypedTimeValue.Type.C, e))
-        );
+        ).collect(Collectors.toUnmodifiableList());
 
-        return timeSeries.sorted(comparing(TypedTimeValue::timestamp))
+        return timeSeries.stream().parallel()
                 .collect(AirQualityIndexCollector.toUnmodifiableList(maxTemperature));
     }
 
