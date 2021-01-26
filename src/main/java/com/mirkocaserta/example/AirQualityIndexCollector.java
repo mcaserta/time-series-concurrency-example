@@ -2,6 +2,7 @@ package com.mirkocaserta.example;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -14,7 +15,7 @@ import static com.mirkocaserta.example.AirQualityIndexCalculator.mostRecent;
 import static java.util.Comparator.comparing;
 
 public class AirQualityIndexCollector
-        implements Collector<TypedTimeValue, List<TypedTimeValue>, List<TimeValue>> {
+        implements Collector<TypedTimeValue, Queue<TypedTimeValue>, List<TimeValue>> {
 
     private final double maxTemperature;
 
@@ -27,17 +28,17 @@ public class AirQualityIndexCollector
     }
 
     @Override
-    public Supplier<List<TypedTimeValue>> supplier() {
-        return () -> Collections.synchronizedList(new ArrayList<>());
+    public Supplier<Queue<TypedTimeValue>> supplier() {
+        return ConcurrentLinkedQueue::new;
     }
 
     @Override
-    public BiConsumer<List<TypedTimeValue>, TypedTimeValue> accumulator() {
-        return List::add;
+    public BiConsumer<Queue<TypedTimeValue>, TypedTimeValue> accumulator() {
+        return Queue::add;
     }
 
     @Override
-    public BinaryOperator<List<TypedTimeValue>> combiner() {
+    public BinaryOperator<Queue<TypedTimeValue>> combiner() {
         return (typedTimeValues, typedTimeValues2) -> {
             typedTimeValues.addAll(typedTimeValues2);
             return typedTimeValues;
@@ -45,7 +46,7 @@ public class AirQualityIndexCollector
     }
 
     @Override
-    public Function<List<TypedTimeValue>, List<TimeValue>> finisher() {
+    public Function<Queue<TypedTimeValue>, List<TimeValue>> finisher() {
         final Map<Instant, TimeValue> aqiAccumulator = new HashMap<>();
 
         return accumulator -> {
@@ -73,7 +74,7 @@ public class AirQualityIndexCollector
         return Set.of(Characteristics.CONCURRENT, Characteristics.UNORDERED);
     }
 
-    private static TimeValue getClosest(List<TypedTimeValue> accumulator, TypedTimeValue.Type type, Instant timestamp) {
+    private static TimeValue getClosest(Queue<TypedTimeValue> accumulator, TypedTimeValue.Type type, Instant timestamp) {
         return accumulator.stream()
                 .filter(e -> e.type().equals(type))
                 .filter(e -> e.timestamp().equals(timestamp) || e.timestamp().isBefore(timestamp))
