@@ -4,6 +4,8 @@ import java.util.List;
 
 public abstract class TestDataProvider {
 
+    public static final double MAX_TEMPERATURE = 40;
+
     public static List<TimeValue> temperatures() {
         return List.of(
                 TimeValue.of("2021-01-20T08:00:00Z", 10.1),
