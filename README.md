@@ -536,11 +536,11 @@ for (Instant key : keys) {
 
 ## Concurrency considerations
 
-As we need to retrieve two different sets of data from two
-different providers (one for temperature data and one for carbon monoxide
-percentage data), we might want to run the clients in parallel. This has
-an advantage over traditional single threaded execution where you would
-have to serialize the calls to the providers.
+As we need to retrieve two different sets of data from two different providers
+(one for temperature data and one for carbon monoxide percentage data), we
+might want to run the clients in parallel. This has an advantage over
+traditional single threaded execution where you would have to serialize the
+calls to the providers.
 
 In a single threaded environment, you might write code like this:
 
@@ -555,31 +555,108 @@ This translates to the following serial execution model:
 
 ![sequence diagram for serial execution](images/sequence-diagram-serial.jpg)
 
-As we said, we can do better than this. In a multithreaded environment,
-we can spawn the two clients concurrently and start processing their data
-as soon as we receive a response from both. This saves us some time and
-potentially speeds up our overall response time.
+As we said, we can do better than this. In a multithreaded environment, we can
+spawn the two clients concurrently and start processing their data as soon as
+we receive a response from both. This saves us some time and potentially speeds
+up our overall response time.
 
 ![sequence diagram for parallel execution](images/sequence-diagram-parallel.jpg)
 
-How do we implement this execution model in our code? There are several 
-options but the most popular and the one I personally like the most is
-to use `ComposableFuture`s which were introduced in Java 8 if I recall
-correctly.
+How do we implement this execution model in our code? There are several options
+but the most popular and the one I personally like the most is to use
+`ComposableFuture`s, which were introduced in Java 8 if I recall correctly.
 
-A `ComposableFuture` is a container for a computation. You provide it
-the code you need to execute and the Java runtime takes care of 
-running it concurrently in a threaded scheduler. The scheduler is of
-course customizable but the defaults are okay for our simple case here.
-You can see the complete example [here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/App.java).
+A `ComposableFuture` is a container for a computation. You provide it the code
+you want to execute and the Java runtime takes care of running it concurrently
+in a threaded scheduler. The scheduler is of course customizable but the
+defaults are okay for our simple case here.  You can see the complete example
+[here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/App.java).
 
-`TODO:` complete me oni-chan
+In my example I have declared my `CompletableFuture`s like this:
+
+```java
+CompletableFuture<List<TimeValue>> timedValuesFuture1 = CompletableFuture.supplyAsync(() -> {
+   log("Calling provider1...");
+   List<TimeValue> timeValues = provider1.get();
+   log(String.format("provider 1 returned: %s\n", timeValues));
+   return timeValues;
+});
+```
+
+This is a bit verbose as I wanted to include some logging to show you how this
+code runs in parallel. I might as well have written:
+
+```java
+CompletableFuture<List<TimeValue>> timedValuesFuture1 = CompletableFuture.supplyAsync(provider1::get);
+```
+
+This is still verbose but definitely better than before. As the computation in
+our `CompletableFuture` returns a `List<TimeValue>`, the `supplyAsync` method
+returns a `CompletableFuture<List<TimeValue>>`, which is Java's way of saying
+that the `timedValuesFuture1` variable is a `CompletableFuture` holding a
+`List<TimeValue>`. Please note that the code we are passing to the
+`supplyAsync` method is inside a lambda. What this means is that our code
+doesn't get executed in the `supplyAsync` method but the Java runtime is free
+to choose when it's the best time to run it. The default scheduler will
+generally start running your `CompletableFuture`s as soon as they are defined
+but you need to understand that this is not necessarily so and that defining a
+lambda doesn't mean it gets executed at the point of declaration.
+
+We now need a way to make sure our `CompletableFuture`s have completed their
+execution before going on. This is done by composing our futures and calling
+the `join` method on the resulting future:
+
+```java
+CompletableFuture.allOf(timedValuesFuture1, timedValuesFuture2).join();
+```
+
+The `allOf` method returns a new `CompletableFuture` which wraps the futures
+we're passing to it. On this new future we then call `join` which blocks until
+all the wrapped futures have finished executing.
+
+After this line, we are sure that our threads have run, so we can get the data
+we need from our original futures with the `join` method:
+
+```java
+List<TimeValue> timeValues1 = timedValuesFuture1.join();
+List<TimeValue> timeValues2 = timedValuesFuture2.join();
+```
+
 
 ## Example output
 
-`TODO:`
+When you run the application, you should see output similar to this:
 
-`TODO:` link the blog post here when I'm done.
+```
+2021-02-03T17:50:26.772545406 --- [main] Hello concurrent world!
+2021-02-03T17:50:26.801737530 --- [ForkJoinPool.commonPool-worker-3] Calling provider1...
+2021-02-03T17:50:26.802105151 --- [main] Calling allOf(...).join()
+2021-02-03T17:50:26.802202415 --- [ForkJoinPool.commonPool-worker-5] Calling provider2...
+2021-02-03T17:50:27.834127796 --- [ForkJoinPool.commonPool-worker-5] provider 2 returned: [TimeValue{timestamp=2021-01-18T08:00:22Z, value=76.629}, TimeValue{timestamp=2021-01-18T08:00:45Z, value=90.241}]
+2021-02-03T17:50:27.834702562 --- [ForkJoinPool.commonPool-worker-3] provider 1 returned: [TimeValue{timestamp=2021-01-18T08:00:24Z, value=30.318}, TimeValue{timestamp=2021-01-18T08:00:35Z, value=13.521}, TimeValue{timestamp=2021-01-18T08:00:35Z, value=29.518}, TimeValue{timestamp=2021-01-18T08:00:36Z, value=0.818}, TimeValue{timestamp=2021-01-18T08:00:46Z, value=8.695}, TimeValue{timestamp=2021-01-18T08:00:50Z, value=31.233}, TimeValue{timestamp=2021-01-18T08:00:51Z, value=24.675}, TimeValue{timestamp=2021-01-18T08:00:53Z, value=38.477}]
+2021-02-03T17:50:27.835040844 --- [main] After allOf(...).join()
+2021-02-03T17:50:27.852793190 --- [main] timeValues = [TimeValue{timestamp=2021-01-18T08:00:24Z, value=76.212}, TimeValue{timestamp=2021-01-18T08:00:35Z, value=75.212}, TimeValue{timestamp=2021-01-18T08:00:36Z, value=39.337}, TimeValue{timestamp=2021-01-18T08:00:45Z, value=46.143}, TimeValue{timestamp=2021-01-18T08:00:46Z, value=55.989}, TimeValue{timestamp=2021-01-18T08:00:50Z, value=84.161}, TimeValue{timestamp=2021-01-18T08:00:51Z, value=75.964}, TimeValue{timestamp=2021-01-18T08:00:53Z, value=93.217}]
+```
+
+It's interesting to note here that in this specific run `allOf(...).join()` was
+called much before calling provider 2 and both results were returned from
+providers.
+
+Your output will definitely be different as:
+
+1. the threads' execution order is non-deterministic
+2. the providers' values are generated randomly
+
+
+## Conclusion
+
+You've made it! This was quite the run. I hope it's been entertaining.  I spent
+quite a bit of time on this as I was trying to dig deeper into some issues I've
+had at work. I suggest you do the same when you run into problems that need
+some clarification on your side. I also hope you found this useful. 
+
+Bye for now, [Mirko](https://mirkocaserta.com).
+
 
 ## Footnotes
 
