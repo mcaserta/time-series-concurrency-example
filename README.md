@@ -367,9 +367,168 @@ Makes sense? I certainly hope so.
 ![yes](images/yes.gif)
 
 
+## Let's get coding
+
+Time to write some code. First of all, let's define an interface for our
+`AQi` calculator, so we can provide different implementations later on.
+
+The code for this interface can be seen [here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/AirQualityIndexCalculator.java).
+
+This interface makes for a convenient place where we can implement the `AQi` formula:
+
+```java
+static double airQualityIndex(double temperature, double carbonMonoxidePercentage, double maxTemperature) {
+    return (((temperature * 100) / maxTemperature) + carbonMonoxidePercentage) / 2;
+}
+```
+
+This method takes a temperature, a carbon monoxide percentage, a max 
+temperature and returns the `AQi`. Nice.
+
+The interesting bit however is this method:
+
+```java
+List<TimeValue> calculate(List<TimeValue> temperatures, List<TimeValue> carbonMonoxidePercentages);
+```
+
+This says that the `calculate` method takes two lists of `TimeValue`s: 
+the first is a list of temperatures and the other is a list of carbon
+monoxide percentages. It then returns a list of `TimeValue`s, only this
+time the list is representing air quality indices.
+
+What is a `TimeValue`? You can see its definition [here](https://github.com/mcaserta/time-series-concurrency-example/blob/c5b4574a40be0a818aba1513aaef7cc9d2a41d2b/src/main/java/com/mirkocaserta/example/TimeValue.java#L7).
+Although this seems horribly complicated due to the verbosity of the 
+Java language and a few implementation details, you can think of a
+time value as just a convenient way to represent an `Instant` in time
+and its associated `value`. Nothing fancy, really.
+
+
 ## Coding like it's 1984
 
-`TODO:` example with for loop
+Now that we have a basic framework for our calculations, let's write
+a first implementation using the old school style. The complete code
+for this is [here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/OldSchoolAirQualityIndexCalculator.java).
+Let's take a look.
+
+Our calculator takes the max temperature in its constructor and stores
+its value in the `maxTemperature` instance constant as we'll need its
+value later when invoking the `AQi` function.
+
+Our `calculate` method should start with these two steps:
+
+1. concatenate the temperature and carbon monoxide percentage
+   data in a single data structure
+2. sort the resulting data by timestamp
+
+Step 1 is implemented by this code:
+
+```java
+// key = time value type (C = carbonMonoxidePercentage, T = temperature)
+// concatenated with the timestamp as a string
+Map<String, TimeValue> timeValuesByType = new HashMap<>();
+
+for (TimeValue temperature : temperatures) {
+    timeValuesByType.put("T".concat(temperature.ts()), temperature);
+}
+
+for (TimeValue carbonMonoxidePercentage : carbonMonoxidePercentages) {
+    timeValuesByType.put("C".concat(carbonMonoxidePercentage.ts()), carbonMonoxidePercentage);
+}
+```
+
+The key in our `timeValuesByType` variable is a string concatenation of
+the letter `T` for temperature or `C` for carbon monoxide percentage,
+followed by the timestamp. We need to do this in order to later 
+distinguish between the two types of values. The key string will look
+like this: `T2021-02-03T08:00:00.000Z`.
+
+The sorting is done by this bit:
+
+```java
+Map<String, TimeValue> timeValuesByTypeSortedByTimestamp = new LinkedHashMap<>();
+List<String> keysSortedByTimestamp = new ArrayList<>(timeValuesByType.keySet());
+keysSortedByTimestamp.sort(comparing(s -> timeValuesByType.get(s).timestamp()));
+
+for (String key : keysSortedByTimestamp) {
+    timeValuesByTypeSortedByTimestamp.put(key, timeValuesByType.get(key));
+}
+```
+
+This is just overcomplicated Java lingo for having our map sorted by the 
+timestamp we have in the Java map values. We declare a 
+`timeValuesByTypeSortedByTimestamp` map, implemented by a `LinkedHashMap`
+because we want to preserve the iteration order of the map entries. Then
+we wrap all the keys in our original `timeValuesByType` map in a ArrayList
+as we need a `List` in order to then invoke `sort` on it. The comparator
+function we are passing to sort is picking the timestamp of the relative
+entry in the original `timeValuesByType` map. We then iterate 
+`keysSortedByTimestamp`, adding entries to our 
+`timeValuesByTypeSortedByTimestamp` map.
+
+Now we are declaring a map for the results of our `AQi` calculations and
+a couple variables we'll need later:
+
+```java
+Map<Instant, Double> airQualityIndexMap = new HashMap<>();
+TimeValue lastTemperature = null;
+TimeValue lastCarbonMonoxidePercentage = null;
+```
+
+Here begins the fun part. We cycle through the map entries in our previously
+defined `timeValuesByTypeSortedByTimestamp` variable.
+
+```java
+for (Map.Entry<String, TimeValue> entry : timeValuesByTypeSortedByTimestamp.entrySet()) {
+    ...
+```
+
+We know that if the key begins with a `T`, we have a temperature value 
+and, in such case we store it in the `lastTemperature` variable. 
+Otherwise, the value must be of type `C` for carbon, so we do the same
+for the `lastCarbonMonoxidePercentage` variable.
+
+```java
+if (entry.getKey().startsWith("T")) {
+    lastTemperature = entry.getValue();
+} else if (entry.getKey().startsWith("C")) {
+    lastCarbonMonoxidePercentage = entry.getValue();
+}
+```
+
+At this point, if we have a value both for `T` and `C`, we can proceed
+to calculate our `AQi` and store its value in the `airQualityIndexMap`
+variable.
+
+```java
+if (lastTemperature != null && lastCarbonMonoxidePercentage != null) {
+    airQualityIndexMap.put(
+        mostRecent(lastTemperature.timestamp(), lastCarbonMonoxidePercentage.timestamp()),
+        airQualityIndex(lastTemperature.value(), lastCarbonMonoxidePercentage.value(), maxTemperature)
+    );
+}
+```
+
+We are picking the most recent timestamp between the two `TimeValue`s 
+using a handy helper function that we defined earlier in our calculator
+interface.
+
+An intended side effect of using a map for this data structure is
+that, when we `put` a new value for an existing timestamp, the entry gets
+overwritten by the most recent one. This solves our problem with duplicate
+timestamps.
+
+At the end of the for cycle, our results are ready. We just need to
+sort by timestamp and return the values as a `List` of `TimeValue`s.
+
+```java
+List<Instant> keys = new ArrayList<>(airQualityIndexMap.keySet());
+keys.sort(Instant::compareTo);
+List<TimeValue> results = new ArrayList<>();
+
+for (Instant key : keys) {
+    results.add(TimeValue.of(key, airQualityIndexMap.get(key)));
+}
+```
 
 
 ## Functional elegance

@@ -1,16 +1,11 @@
 package com.mirkocaserta.example;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static com.mirkocaserta.example.AirQualityIndexCalculator.airQualityIndex;
 import static com.mirkocaserta.example.AirQualityIndexCalculator.mostRecent;
 import static java.util.Comparator.comparing;
-import static java.util.stream.Collectors.toUnmodifiableList;
 
 public class OldSchoolAirQualityIndexCalculator implements AirQualityIndexCalculator {
 
@@ -34,12 +29,13 @@ public class OldSchoolAirQualityIndexCalculator implements AirQualityIndexCalcul
             timeValuesByType.put("C".concat(carbonMonoxidePercentage.ts()), carbonMonoxidePercentage);
         }
 
-        Map<String, TimeValue> timeValuesByTypeSortedByTimestamp = timeValuesByType.entrySet().stream()
-                .sorted(comparing((tv) -> tv.getValue().timestamp()))
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (oldValue, newValue) -> oldValue, LinkedHashMap::new));
+        Map<String, TimeValue> timeValuesByTypeSortedByTimestamp = new LinkedHashMap<>();
+        List<String> keysSortedByTimestamp = new ArrayList<>(timeValuesByType.keySet());
+        keysSortedByTimestamp.sort(comparing(s -> timeValuesByType.get(s).timestamp()));
+
+        for (String key : keysSortedByTimestamp) {
+            timeValuesByTypeSortedByTimestamp.put(key, timeValuesByType.get(key));
+        }
 
         Map<Instant, Double> airQualityIndexMap = new HashMap<>();
         TimeValue lastTemperature = null;
@@ -60,10 +56,15 @@ public class OldSchoolAirQualityIndexCalculator implements AirQualityIndexCalcul
             }
         }
 
-        return airQualityIndexMap.entrySet().stream()
-                .map(e -> new TimeValue(e.getKey(), e.getValue()))
-                .sorted(comparing(TimeValue::timestamp))
-                .collect(toUnmodifiableList());
+        List<Instant> keys = new ArrayList<>(airQualityIndexMap.keySet());
+        keys.sort(Instant::compareTo);
+        List<TimeValue> results = new ArrayList<>();
+
+        for (Instant key : keys) {
+            results.add(TimeValue.of(key, airQualityIndexMap.get(key)));
+        }
+
+        return results;
     }
 
 }
