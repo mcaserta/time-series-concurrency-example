@@ -536,7 +536,44 @@ for (Instant key : keys) {
 
 ## Concurrency considerations
 
-`TODO:`
+As we need to retrieve two different sets of data from two
+different providers (one for temperature data and one for carbon monoxide
+percentage data), we might want to run the clients in parallel. This has
+an advantage over traditional single threaded execution where you would
+have to serialize the calls to the providers.
+
+In a single threaded environment, you might write code like this:
+
+```java
+TimeValueProvider providerT = new TemperatureTimeValueProvider();
+TimeValueProvider providerC = new CarbonMonoxidePercentageProvider();
+List<TimeValue> timeValuesT = providerT.get();
+List<TimeValue> timeValuesC = providerC.get();
+```
+
+This translates to the following serial execution model:
+
+![sequence diagram for serial execution](images/sequence-diagram-serial.jpg)
+
+As we said, we can do better than this. In a multithreaded environment,
+we can spawn the two clients concurrently and start processing their data
+as soon as we receive a response from both. This saves us some time and
+potentially speeds up our overall response time.
+
+![sequence diagram for parallel execution](images/sequence-diagram-parallel.jpg)
+
+How do we implement this execution model in our code? There are several 
+options but the most popular and the one I personally like the most is
+to use `ComposableFuture`s which were introduced in Java 8 if I recall
+correctly.
+
+A `ComposableFuture` is a container for a computation. You provide it
+the code you need to execute and the Java runtime takes care of 
+running it concurrently in a threaded scheduler. The scheduler is of
+course customizable but the defaults are okay for our simple case here.
+You can see the complete example [here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/App.java).
+
+`TODO:` complete me oni-chan
 
 ## Example output
 
