@@ -374,7 +374,7 @@ Time to write some code. First of all, let's define an interface for our
 
 The code for this interface can be seen [here](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/AirQualityIndexCalculator.java).
 
-This interface makes for a convenient place where we can implement the `AQi` formula:
+This interface makes for a convenient place to implement the `AQi` formula:
 
 ```java
 static double airQualityIndex(double temperature, double carbonMonoxidePercentage, double maxTemperature) {
@@ -458,7 +458,7 @@ This is just overcomplicated Java lingo for having our map sorted by the
 timestamp we have in the Java map values. We declare a 
 `timeValuesByTypeSortedByTimestamp` map, implemented by a `LinkedHashMap`
 because we want to preserve the iteration order of the map entries. Then
-we wrap all the keys in our original `timeValuesByType` map in a ArrayList
+we wrap all the keys in our original `timeValuesByType` map in an ArrayList
 as we need a `List` in order to then invoke `sort` on it. The comparator
 function we are passing to sort is picking the timestamp of the relative
 entry in the original `timeValuesByType` map. We then iterate 
@@ -517,8 +517,8 @@ that, when we `put` a new value for an existing timestamp, the entry gets
 overwritten by the most recent one. This solves our problem with duplicate
 timestamps.
 
-At the end of the for cycle, our results are ready. We just need to
-sort by timestamp and return the values as a `List` of `TimeValue`s.
+At the end of the cycle, our results are almost ready. We just need to
+sort by timestamp again and return the values as a `List` of `TimeValue`s.
 
 ```java
 List<Instant> keys = new ArrayList<>(airQualityIndexMap.keySet());
