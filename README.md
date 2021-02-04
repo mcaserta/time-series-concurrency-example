@@ -1,4 +1,4 @@
-# Time Series Data and ComposableFuture example in Java
+# Time Series Data and CompletableFuture example in Java
 
 This is an example for a blog post I'm writing.
 
