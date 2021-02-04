@@ -531,13 +531,15 @@ for (Instant key : keys) {
 
 ## Functional elegance
 
-Can we do better than this? Absolutely. Let's use an elegant weapon for a 
-more civilized age: functional programming. Our [FunctionalAirQualityIndexCalculator](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/FunctionalAirQualityIndexCalculator.java)
+Can we do better than this? Absolutely. Let's use an elegant weapon for a more
+civilized age: functional programming. Our
+[FunctionalAirQualityIndexCalculator](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/FunctionalAirQualityIndexCalculator.java)
 is quite slimmed down, but that's just because the main logic behind the
-calculations is now in the [AirQualityIndexCollector](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/AirQualityIndexCollector.java).
+calculations is now in the
+[AirQualityIndexCollector](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/AirQualityIndexCollector.java).
 
-Our new calculator is much simpler now. The first part is quite involved
-so let's take a look at it first:
+Our new calculator is much simpler now. The first part is quite involved so
+let's take a look at it first:
 
 ```java
 List<TypedTimeValue> timeSeries = Stream.concat(
@@ -548,9 +550,9 @@ List<TypedTimeValue> timeSeries = Stream.concat(
 
 There are several functional patterns at work here:
 
-- the temperatures and carbon monoxide percentage data are streamed
-  and mapped into a type wrapper in order to later understand if
-  the data we're looking at is of type `T` or `C`
+- the temperatures and carbon monoxide percentage data are streamed and mapped
+  into a type wrapper in order to later understand if the data we're looking at
+  is of type `T` or `C`
 
 - the two resulting streams are concatenated using `Stream.concat`
 
@@ -562,9 +564,9 @@ return timeSeries.stream().parallel()
     .collect(AirQualityIndexCollector.toUnmodifiableList(maxTemperature));
 ```
 
-The `timeSeries` is then streamed in parallel into a collector that does 
-the real work and returns an unmodifiable `List<TimeValue>` with the air
-quality indices.
+The `timeSeries` is then streamed in parallel into a collector that does the
+real work and returns an unmodifiable `List<TimeValue>` with the air quality
+indices.
 
 Let's take a look at the collector.
 
@@ -574,15 +576,15 @@ public class AirQualityIndexCollector
     ...
 ```
 
-We're implementing the `Collector` interface. The type parameters we are 
+We're implementing the `Collector` interface. The type parameters we are
 providing here express three things:
 
 - we are collecting values of type `TypedTimeValue`
 - our internal accumulator is using a `Queue<TypedTimeValue>`
 - at the end of our work, we are returning a `List<TimeValue>`
 
-A `Queue` is just a thread safe `List`. We provide the implementation
-using the supplier method:
+A `Queue` is just a thread safe `List`. We provide the implementation using the
+supplier method:
 
 ```java
 @Override
@@ -591,8 +593,8 @@ public Supplier<Queue<TypedTimeValue>> supplier() {
 }
 ```
 
-In this case, the implementation is a `ConcurrentLinkedQueue` which,
-again, is just sort of a thread safe `ArrayList`.
+In this case, the implementation is a `ConcurrentLinkedQueue` which, again, is
+just sort of a thread safe `ArrayList`.
 
 ```java
 @Override
@@ -601,9 +603,9 @@ public BiConsumer<Queue<TypedTimeValue>, TypedTimeValue> accumulator() {
 }
 ```
 
-The accumulator method must return a function which the collector uses
-to accumulate the input data. As you can see, we simply return a reference
-to the `add` method in `Queue`.
+The accumulator method must return a function which the collector uses to
+accumulate the input data. As you can see, we simply return a reference to the
+`add` method in `Queue`.
 
 ```java
 @Override
@@ -615,11 +617,10 @@ public BinaryOperator<Queue<TypedTimeValue>> combiner() {
 }
 ```
 
-The combiner method must return a function that combines two
-accumulators. The implementation should pick all elements
-from the second accumulator and add them to the first one,
-which doesn't sound very functional in terms of immutability
-but in this case mutation is an expected behavior, and it's
+The combiner method must return a function that combines two accumulators. The
+implementation should pick all elements from the second accumulator and add
+them to the first one, which doesn't sound very functional in terms of
+immutability but in this case mutation is an expected behavior, and it's
 totally fine.
 
 ```java
@@ -628,18 +629,18 @@ public Function<Queue<TypedTimeValue>, List<TimeValue>> finisher() {
     ...
 ```
 
-Finally, the finisher must return a function which takes all the
-accumulated values in our `Queue<TypedTimeValue>` and return a
-`List<TimeValue>` with our air quality indices.
+Finally, the finisher must return a function which takes all the accumulated
+values in our `Queue<TypedTimeValue>` and return a `List<TimeValue>` with our
+air quality indices.
 
 ```java
 final Map<Instant, TimeValue> aqiAccumulator = new HashMap<>();
 ```
 
-This is a map that is going to collect all the air quality indices.
-As you can see, it's indexed by a timestamp, so we won't get 
-duplicate entries as more recent calculations for the same
-timestamps are put into the map replacing the stale ones.
+This is a map that is going to collect all the air quality indices.  As you can
+see, it's indexed by a timestamp, so we won't get duplicate entries as more
+recent calculations for the same timestamps are put into the map replacing the
+stale ones.
 
 ```java
 return accumulator -> {
@@ -662,33 +663,29 @@ return accumulator -> {
 };
 ```
 
-This is quite a mouthful but let's go through it bit by bit.
-We are streaming the accumulated data, extracting the timestamp,
-sorting by it and, for each timestamp we look for the temperature
-and carbon monoxide percentage data with the closest timestamp.
-*Closest* means that the timestamp we're evaluating must be
-before of or equal to the timestamp in question.
+This is quite a mouthful but let's go through it bit by bit.  We are streaming
+the accumulated data, extracting the timestamp, sorting by it and, for each
+timestamp we look for the temperature and carbon monoxide percentage data with
+the closest timestamp.  *Closest* means that the timestamp we're evaluating
+must be before of or equal to the timestamp in question.
 
-If we have both data (`T` and `C`), we can proceed to calculate the
-`AQi` and put its value into the `aqiAccumulator` map.
+If we have both data (`T` and `C`), we can proceed to calculate the `AQi` and
+put its value into the `aqiAccumulator` map.
 
-In the end, all we have to do is to stream the values in the
-`aqiAccumulator` map, sort by timestamp and collect them in
-an unmodifiable `List<TimeValue>`.
+In the end, all we have to do is to stream the values in the `aqiAccumulator`
+map, sort by timestamp and collect them in an unmodifiable `List<TimeValue>`.
 
-Sorting like this is possible since we made our `TimeValue` class
-implement `Comparable<TimeValue>`.
+Sorting like this is possible since we made our `TimeValue` class implement
+`Comparable<TimeValue>`.
 
-There are several points in the `finisher` method where I look
-into the datastructures I'm iterating on, which, again, doesn't
-look very kosher in terms of functional programming, but it's okay
-as I know that the data I'm examining isn't being changed by a
-concurrent thread under the hood.
+There are several points in the `finisher` method where I look into the
+datastructures I'm iterating on, which, again, doesn't look very kosher in
+terms of functional programming, but it's okay as I know that the data I'm
+examining isn't being changed by a concurrent thread under the hood.
 
-Is this better than our old school calculator? I'm not sure.
-This is still quite verbose, but to me it seems easier to read as
-most of the code is expressed in a declarative style rather than 
-an imperative one.
+Is this better than our old school calculator? I'm not sure.  This is still
+quite verbose, but to me it seems easier to read as most of the code is
+expressed in a declarative style rather than an imperative one.
 
 
 ## Concurrency considerations
