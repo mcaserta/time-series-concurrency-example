@@ -531,7 +531,164 @@ for (Instant key : keys) {
 
 ## Functional elegance
 
-`TODO:` functional code
+Can we do better than this? Absolutely. Let's use an elegant weapon for a 
+more civilized age: functional programming. Our [FunctionalAirQualityIndexCalculator](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/FunctionalAirQualityIndexCalculator.java)
+is quite slimmed down, but that's just because the main logic behind the
+calculations is now in the [AirQualityIndexCollector](https://github.com/mcaserta/time-series-concurrency-example/blob/master/src/main/java/com/mirkocaserta/example/AirQualityIndexCollector.java).
+
+Our new calculator is much simpler now. The first part is quite involved
+so let's take a look at it first:
+
+```java
+List<TypedTimeValue> timeSeries = Stream.concat(
+   temperatures.stream().map(e -> new TypedTimeValue(TypedTimeValue.Type.T, e)),
+   carbonMonoxidePercentages.stream().map(e -> new TypedTimeValue(TypedTimeValue.Type.C, e))
+).collect(Collectors.toUnmodifiableList());
+```
+
+There are several functional patterns at work here:
+
+- the temperatures and carbon monoxide percentage data are streamed
+  and mapped into a type wrapper in order to later understand if
+  the data we're looking at is of type `T` or `C`
+
+- the two resulting streams are concatenated using `Stream.concat`
+
+- in the end we collect the concatenated stream into an unmodifiable
+  `List<TypedTimeValue>`
+
+```java
+return timeSeries.stream().parallel()
+    .collect(AirQualityIndexCollector.toUnmodifiableList(maxTemperature));
+```
+
+The `timeSeries` is then streamed in parallel into a collector that does 
+the real work and returns an unmodifiable `List<TimeValue>` with the air
+quality indices.
+
+Let's take a look at the collector.
+
+```java
+public class AirQualityIndexCollector
+        implements Collector<TypedTimeValue, Queue<TypedTimeValue>, List<TimeValue>> {
+    ...
+```
+
+We're implementing the `Collector` interface. The type parameters we are 
+providing here express three things:
+
+- we are collecting values of type `TypedTimeValue`
+- our internal accumulator is using a `Queue<TypedTimeValue>`
+- at the end of our work, we are returning a `List<TimeValue>`
+
+A `Queue` is just a thread safe `List`. We provide the implementation
+using the supplier method:
+
+```java
+@Override
+public Supplier<Queue<TypedTimeValue>> supplier() {
+    return ConcurrentLinkedQueue::new;
+}
+```
+
+In this case, the implementation is a `ConcurrentLinkedQueue` which,
+again, is just sort of a thread safe `ArrayList`.
+
+```java
+@Override
+public BiConsumer<Queue<TypedTimeValue>, TypedTimeValue> accumulator() {
+    return Queue::add;
+}
+```
+
+The accumulator method must return a function which the collector uses
+to accumulate the input data. As you can see, we simply return a reference
+to the `add` method in `Queue`.
+
+```java
+@Override
+public BinaryOperator<Queue<TypedTimeValue>> combiner() {
+    return (typedTimeValues, typedTimeValues2) -> {
+        typedTimeValues.addAll(typedTimeValues2);
+        return typedTimeValues;
+    };
+}
+```
+
+The combiner method must return a function that combines two
+accumulators. The implementation should pick all elements
+from the second accumulator and add them to the first one,
+which doesn't sound very functional in terms of immutability
+but in this case mutation is an expected behavior, and it's
+totally fine.
+
+```java
+@Override
+public Function<Queue<TypedTimeValue>, List<TimeValue>> finisher() {
+    ...
+```
+
+Finally, the finisher must return a function which takes all the
+accumulated values in our `Queue<TypedTimeValue>` and return a
+`List<TimeValue>` with our air quality indices.
+
+```java
+final Map<Instant, TimeValue> aqiAccumulator = new HashMap<>();
+```
+
+This is a map that is going to collect all the air quality indices.
+As you can see, it's indexed by a timestamp, so we won't get 
+duplicate entries as more recent calculations for the same
+timestamps are put into the map replacing the stale ones.
+
+```java
+return accumulator -> {
+   accumulator.stream()
+           .map(TypedTimeValue::timestamp)
+           .sorted()
+           .forEach(entryTS -> {
+               final TimeValue lastTemperature = getClosest(accumulator, TypedTimeValue.Type.T, entryTS);
+               final TimeValue lastCarbonMonoxidePercentage = getClosest(accumulator, TypedTimeValue.Type.C, entryTS);
+
+               if (lastTemperature != null && lastCarbonMonoxidePercentage != null) {
+                   Instant timestamp = mostRecent(lastTemperature.timestamp(), lastCarbonMonoxidePercentage.timestamp());
+                   aqiAccumulator.put(timestamp, TimeValue.of(timestamp, airQualityIndex(lastTemperature.value(), lastCarbonMonoxidePercentage.value(), maxTemperature)));
+               }
+           });
+
+   return aqiAccumulator.values().stream()
+           .sorted()
+           .collect(Collectors.toUnmodifiableList());
+};
+```
+
+This is quite a mouthful but let's go through it bit by bit.
+We are streaming the accumulated data, extracting the timestamp,
+sorting by it and, for each timestamp we look for the temperature
+and carbon monoxide percentage data with the closest timestamp.
+*Closest* means that the timestamp we're evaluating must be
+before of or equal to the timestamp in question.
+
+If we have both data (`T` and `C`), we can proceed to calculate the
+`AQi` and put its value into the `aqiAccumulator` map.
+
+In the end, all we have to do is to stream the values in the
+`aqiAccumulator` map, sort by timestamp and collect them in
+an unmodifiable `List<TimeValue>`.
+
+Sorting like this is possible since we made our `TimeValue` class
+implement `Comparable<TimeValue>`.
+
+There are several points in the `finisher` method where I look
+into the datastructures I'm iterating on, which, again, doesn't
+look very kosher in terms of functional programming, but it's okay
+as I know that the data I'm examining isn't being changed by a
+concurrent thread under the hood.
+
+Is this better than our old school calculator? I'm not sure.
+This is still quite verbose, but to me it seems easier to read as
+most of the code is expressed in a declarative style rather than 
+an imperative one.
 
 
 ## Concurrency considerations
@@ -637,6 +794,12 @@ When you run the application, you should see output similar to this:
 2021-02-03T17:50:27.835040844 --- [main] After allOf(...).join()
 2021-02-03T17:50:27.852793190 --- [main] timeValues = [TimeValue{timestamp=2021-01-18T08:00:24Z, value=76.212}, TimeValue{timestamp=2021-01-18T08:00:35Z, value=75.212}, TimeValue{timestamp=2021-01-18T08:00:36Z, value=39.337}, TimeValue{timestamp=2021-01-18T08:00:45Z, value=46.143}, TimeValue{timestamp=2021-01-18T08:00:46Z, value=55.989}, TimeValue{timestamp=2021-01-18T08:00:50Z, value=84.161}, TimeValue{timestamp=2021-01-18T08:00:51Z, value=75.964}, TimeValue{timestamp=2021-01-18T08:00:53Z, value=93.217}]
 ```
+
+You can see there are three different threads at work here:
+
+1. main
+2. ForkJoinPool.commonPool-worker-3
+3. ForkJoinPool.commonPool-worker-5
 
 It's interesting to note here that in this specific run `allOf(...).join()` was
 called much before calling provider 2 and both results were returned from
