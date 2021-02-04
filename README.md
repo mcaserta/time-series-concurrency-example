@@ -44,7 +44,7 @@ unscientific but bear with me for the sake of argumentation, please.
 I assume a maximum temperature of 40C°. So, for instance:
 
 ```shell
-bc -l
+$ bc -l
 bc 1.06
 Copyright 1991-1994, 1997, 1998, 2000 Free Software Foundation, Inc.
 This is free software with ABSOLUTELY NO WARRANTY.
@@ -718,9 +718,9 @@ up our overall response time.
 
 How do we implement this execution model in our code? There are several options
 but the most popular and the one I personally like the most is to use
-`ComposableFuture`s, which were introduced in Java 8 if I recall correctly.
+`CompletableFuture`s, which were introduced in Java 8 if I recall correctly.
 
-A `ComposableFuture` is a container for a computation. You provide it the code
+A `CompletableFuture` is a container for a computation. You provide it the code
 you want to execute and the Java runtime takes care of running it concurrently
 in a threaded scheduler. The scheduler is of course customizable but the
 defaults are okay for our simple case here.  You can see the complete example
